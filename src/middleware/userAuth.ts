@@ -1,12 +1,14 @@
 import {Request, Response, NextFunction} from 'express';
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
+import Multer from 'multer';
 
 
 export interface RequestAuth extends Request {
     userId?: string;
     role?: 'User' | 'Admin';
     tokenVersion?: number;
+    file?: Express.Multer.File;
 }
 
 
