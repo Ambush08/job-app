@@ -3,10 +3,13 @@ import { RequestAuth } from "../../middleware/userAuth.js";
 import Job from "../../models/job.model.js";
 import User, { IUser } from "../../models/user.model.js";
 import Category from "../../models/category.model.js";
-import { createJobSchema } from "./jobSchema.js";
+import { createJobSchema, updateJopbSchema } from "./jobSchema.js";
 import uploadToCloudinary from "../../services/imageUpload.service.js";
 import { deleteFromLocal } from "../../utils/deleteFile.js";
 import cloudinary from "../../config/cloudinary.js";
+import mongoose from "mongoose";
+import { ICategory } from "../../models/category.model.js";
+import { error } from "node:console";
 
 //Create job
 export const createJob = async (req: RequestAuth, res: Response) => {
@@ -133,7 +136,7 @@ export const createJob = async (req: RequestAuth, res: Response) => {
 //Get all job postings
 export const getAllJobs = async (req: Request, res: Response) => {
   try {
-    const { category, experience, salary, workplace, sort } = req.query;
+    const { category, experience, salary, workplace } = req.query;
 
     const page = Number(req.query.page || 1);
 
@@ -164,6 +167,7 @@ export const getAllJobs = async (req: Request, res: Response) => {
       filter.salaryMax = { $gte: max };
     }
 
+    //Create sort feature using date created, closing date and alphabet
     //const sorted: Record<string, 1 | -1> = {}
 
     const jobs = await Job.find(filter)
@@ -209,15 +213,209 @@ export const getAllJobs = async (req: Request, res: Response) => {
   }
 };
 
-
 //Get single job post
 export const getJob = async (req: RequestAuth, res: Response) => {
-    try {
-        
-    } catch (error) {
-        console.error(error);
-        return res.status(500).json({
-            message: "iInternal server error"
-        });
+  try {
+    const { id } = req.params;
+
+    if (!id || !mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        message: "Invalid job Id",
+      });
     }
-}
+
+    const job = await Job.findById(id)
+      .populate<{ category: ICategory }>("category")
+      .populate<{ postedBy: IUser }>("postedBy", "firstName lastName");
+
+    if (!job) {
+      return res.status(404).json({
+        message: "Job not found",
+      });
+    }
+
+    return res.status(200).json({
+      job: {
+        id: job._id,
+        title: job.title,
+        desciption: job.description,
+        company: job.company,
+        location: job.location,
+        skills: job.skills,
+        responsibilities: job.responsibilities,
+        logo: job.logo,
+        salaryMin: job.salaryMin,
+        salaryMax: job.salaryMax,
+        experienceLevel: job.experienceLevel,
+        status: job.status,
+        category: job.category,
+        jobType: job.jobType,
+        workplace: job.workplace,
+        postedBy: `${job.postedBy.firstName} ${job.postedBy.lastName}`,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({
+      message: "iInternal server error",
+    });
+  }
+};
+
+//Update job post
+export const updateJob = async (req: RequestAuth, res: Response) => {
+  const result = updateJopbSchema.safeParse(req.body);
+
+  const file = req.file;
+
+  const cleanupLocal = async () => {
+    if (!file) return;
+    await deleteFromLocal(file.path).catch((error) => {
+      console.error("Unable to delete file from local disk", error);
+    });
+  };
+
+  if (!result.success) {
+    await cleanupLocal();
+    return res.status(400).json({
+      message: "Invalid data",
+      error: result.error.flatten(),
+    });
+  }
+
+  const updateData: Record<string, unknown> = { ...result.data };
+
+  let logoResult: { url: string; publicId: string } | undefined;
+  try {
+    const id = req.params.id;
+
+    if (!id || !mongoose.isValidObjectId(id)) {
+      await cleanupLocal();
+      return res.status(400).json({
+        message: "Job Id is required",
+      });
+    }
+
+    const job = await Job.findById(id);
+
+    if (!job) {
+      await cleanupLocal();
+      return res.status(404).json({
+        message: "Job not found",
+      });
+    }
+
+    if (file) {
+      logoResult = await uploadToCloudinary(file.path);
+
+      updateData.logo = logoResult.url;
+      updateData.publicId = logoResult.publicId;
+    }
+
+    const updatedJob = await Job.findByIdAndUpdate(id, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedJob) {
+      if (logoResult) {
+        await cloudinary.uploader
+          .destroy(logoResult.publicId)
+          .catch((error) => {
+            console.error("Failed to updated logo from cloudinary", error);
+          });
+      }
+
+      await cleanupLocal();
+
+      return res.status(404).json({
+        message: "Job not found",
+      });
+    }
+
+    //Delete fromlocal disk
+    await cleanupLocal().catch((error) => {
+      console.log("Unable to delete logo from local disk", error);
+    });
+
+    //Delete old logo from cloudinary
+    if (logoResult && job.publicId) {
+      await cloudinary.uploader.destroy(job.publicId).catch((error) => {
+        console.error("Failed to delete old logo from cloudinary");
+      });
+    }
+
+    return res.status(200).json({
+      message: "Job updated successfully",
+      job: {
+        id: updatedJob?.id,
+        title: updatedJob?.title,
+        description: updatedJob?.description,
+        company: updatedJob?.company,
+        location: updatedJob?.location,
+        skills: updatedJob?.skills,
+        responsibilities: updatedJob?.responsibilities,
+        logo: updatedJob?.logo,
+        salaryMin: updatedJob?.salaryMin,
+        salaryMax: updatedJob?.salaryMax,
+        experienceLevel: updatedJob?.experienceLevel,
+        status: updatedJob?.status,
+        category: updatedJob?.category,
+        jobType: updatedJob?.jobType,
+        workplace: updatedJob?.workplace,
+        postedBy: updatedJob?.postedBy,
+      },
+    });
+  } catch (error) {
+    await cleanupLocal();
+
+    if (logoResult?.publicId) {
+      await cloudinary.uploader.destroy(logoResult.publicId).catch((error) => {
+        console.error(`Failed to delete updated logo from Cloudinary`, error);
+      });
+    }
+
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+//Delete job posting
+export const deleteJob = async (req: RequestAuth, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    if (!id || !mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        message: "Missing or invalid Id",
+      });
+    }
+
+    const job = await Job.findByIdAndDelete(id);
+
+    if (!job) {
+      return res.status(404).json({
+        message: "Job not found",
+      });
+    }
+
+    if (job.publicId) {
+      await cloudinary.uploader.destroy(job.publicId).catch((error) => {
+        console.log("Failed to delete log from cloudinary", error);
+      });
+    }
+
+    return res.status(200).json({
+      messae: "Job deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
