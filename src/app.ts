@@ -6,7 +6,7 @@ import cookieParser from 'cookie-parser';
 import connectDB from './config/database.js';
 import userRouter from './routes/user.routes.js';
 import jobRouter from './routes/job.routes.js';
-import categoryRouter from './routes/category.routes.js'
+import categoryRouter from './routes/category.routes.js';
 
 dotenv.config();
 
@@ -29,7 +29,7 @@ app.use('/user/auth', userRouter);
 app.use('/api/v1/jobs', jobRouter);
 
 //Category route
-app.use('/api/v1/categories', categoryRouter)
+app.use('/api/v1/categories', categoryRouter);
 
 const port  = Number(process.env.PORT) || 4000;
 

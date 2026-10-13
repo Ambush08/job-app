@@ -10,6 +10,7 @@ import cloudinary from "../../config/cloudinary.js";
 import mongoose from "mongoose";
 import { ICategory } from "../../models/category.model.js";
 import { error } from "node:console";
+import Saved from "../../models/saved.model.js";
 
 //Create job
 export const createJob = async (req: RequestAuth, res: Response) => {
@@ -17,45 +18,42 @@ export const createJob = async (req: RequestAuth, res: Response) => {
 
   const file = req.file;
 
-  if (!result.success) {
-    await deleteFromLocal(file?.path || "");
-
-    return res.status(400).json({
-      message: "Invalid job data",
-      error: result.error.flatten(),
-    });
-  }
-
-  if (!file) {
-    return res.status(400).json({
-      message: "Logo file is required",
-    });
-  }
-
-  const {
-    title,
-    description,
-    company,
-    location,
-    skills,
-    responsibilities,
-    salaryMin,
-    salaryMax,
-    status,
-    experienceLevel,
-    category,
-    jobType,
-    workplace,
-  } = result.data;
-
   let uploadResult: { url: string; publicId: string } | undefined;
 
   try {
+    if (!result.success) {
+      return res.status(400).json({
+        message: "Invalid job data",
+        error: result.error.flatten(),
+      });
+    }
+
+    if (!file) {
+      return res.status(400).json({
+        message: "Logo file is required",
+      });
+    }
+
+    const {
+      title,
+      description,
+      company,
+      location,
+      skills,
+      responsibilities,
+      salaryMin,
+      salaryMax,
+      status,
+      experienceLevel,
+      category,
+      jobType,
+      workplace,
+    } = result.data;
+
     //Check if the provided category exists in the db
     const existingCategory = await Category.findById(category);
 
     if (!existingCategory) {
-      await deleteFromLocal(file.path);
       return res.status(400).json({
         message: "Invalid category",
       });
@@ -65,14 +63,12 @@ export const createJob = async (req: RequestAuth, res: Response) => {
     const user = await User.findById(req.userId);
 
     if (!user) {
-      await deleteFromLocal(file.path);
-
       return res.status(404).json({
         message: "User not found",
       });
     }
 
-    uploadResult = await uploadToCloudinary(file.path);
+    uploadResult = await uploadToCloudinary(file.path, { folder: "jobs" });
 
     const newJob = await Job.create({
       title,
@@ -92,8 +88,6 @@ export const createJob = async (req: RequestAuth, res: Response) => {
       workplace,
       postedBy: user.id,
     });
-
-    await deleteFromLocal(file.path);
 
     return res.status(201).json({
       message: "Job created successfully",
@@ -118,8 +112,6 @@ export const createJob = async (req: RequestAuth, res: Response) => {
       },
     });
   } catch (error) {
-    await deleteFromLocal(file.path);
-
     if (uploadResult?.publicId) {
       await cloudinary.uploader.destroy(uploadResult.publicId).catch((err) => {
         console.error(`Failed to delete image from Cloudinary`, err);
@@ -130,6 +122,12 @@ export const createJob = async (req: RequestAuth, res: Response) => {
     return res.status(500).json({
       message: "internal server error",
     });
+  } finally {
+    if (file) {
+      await deleteFromLocal(file.path).catch((error) =>
+        console.error("Failed to delete logo image from local disk", error),
+      );
+    }
   }
 };
 
@@ -402,6 +400,8 @@ export const deleteJob = async (req: RequestAuth, res: Response) => {
       });
     }
 
+    await Saved.deleteMany({ jobId: id });
+
     if (job.publicId) {
       await cloudinary.uploader.destroy(job.publicId).catch((error) => {
         console.log("Failed to delete log from cloudinary", error);
@@ -409,11 +409,22 @@ export const deleteJob = async (req: RequestAuth, res: Response) => {
     }
 
     return res.status(200).json({
-      messae: "Job deleted successfully",
+      message: "Job deleted successfully",
     });
   } catch (error) {
     console.error(error);
 
+    return res.status(500).json({
+      message: "Internal server error",
+    });
+  }
+};
+
+//Search jobs
+export const serchJob = async (req: RequestAuth, res: Response) => {
+  try {
+  } catch (error) {
+    console.error(error);
     return res.status(500).json({
       message: "Internal server error",
     });
