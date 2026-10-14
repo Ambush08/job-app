@@ -47,7 +47,7 @@ const applicationSchema = new Schema<IJobApplication>({
     },
     status: {
         type: String,
-        enum: ['pending', 'reviewd', 'shortlisted', 'rejected', 'hired'],
+        enum: ['pending', 'reviewed', 'shortlisted', 'rejected', 'hired'],
         default: 'pending'
     }
 }, {timestamps: true});
