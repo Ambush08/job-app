@@ -7,6 +7,7 @@ import connectDB from './config/database.js';
 import userRouter from './routes/user.routes.js';
 import jobRouter from './routes/job.routes.js';
 import categoryRouter from './routes/category.routes.js';
+import blogRouter from './routes/blog.routes.js'
 
 dotenv.config();
 
@@ -30,6 +31,9 @@ app.use('/api/v1/jobs', jobRouter);
 
 //Category route
 app.use('/api/v1/categories', categoryRouter);
+
+//Blog route
+app.use('/api/v1/blogs', blogRouter);
 
 const port  = Number(process.env.PORT) || 4000;
 
