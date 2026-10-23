@@ -12,6 +12,20 @@ import { ICategory } from "../../models/category.model.js";
 import Saved from "../../models/saved.model.js";
 import Application from "../../models/jobApplication.model.js";
 
+//Escape regex special characters
+const escapeRegex = (text: string) =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+// Allowed sort options: ?sort=newest | oldest | title | closing
+// NOTE: "closing" assumes your Job model has a `closingDate` field.
+// Rename it to match your schema, or remove that line.
+const SORT_OPTIONS: Record<string, Record<string, 1 | -1>> = {
+  newest: { createdAt: -1 },
+  oldest: { createdAt: 1 },
+  title: { title: 1 },
+  closing: { closingDate: 1 },
+};
+
 //Create job
 export const createJob = async (req: RequestAuth, res: Response) => {
   const result = createJobSchema.safeParse(req.body);
@@ -134,25 +148,27 @@ export const createJob = async (req: RequestAuth, res: Response) => {
 //Get all job postings
 export const getAllJobs = async (req: Request, res: Response) => {
   try {
-    const { category, experience, salary, workplace } = req.query;
+    const { category, experience, salary, workplace, search, location, sort } =
+      req.query;
 
     const page = Math.max(Number(req.query.page) || 1, 1);
-    
+
     const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 50);
 
     const skip = (page - 1) * limit;
 
     const filter: Record<string, unknown> = {};
+    const conditions: Record<string, unknown>[] = [];
 
-    if (category) {
+    if (typeof category === "string" && mongoose.isValidObjectId(category)) {
       filter.category = category;
     }
 
-    if (experience) {
+    if (typeof experience === "string" && experience) {
       filter.experienceLevel = experience;
     }
 
-    if (workplace) {
+    if (typeof workplace === "string" && workplace) {
       filter.workplace = workplace;
     }
 
@@ -161,17 +177,42 @@ export const getAllJobs = async (req: Request, res: Response) => {
         .split("-")
         .map((value) => Number(value.replace("k", "000")));
 
-      filter.salaryMin = { $lte: min };
-      filter.salaryMax = { $gte: max };
+      if (Number.isFinite(min) && Number.isFinite(max)) {
+        filter.salaryMin = { $lte: max };
+        filter.salaryMax = { $gte: min };
+      }
     }
 
-    //Create sort feature using date created, closing date and alphabet
-    //const sorted: Record<string, 1 | -1> = {}
+    // Search by title, company or skill
+    if (typeof search === "string" && search.trim()) {
+      const regex = new RegExp(escapeRegex(search.trim()), "i");
+      conditions.push({
+        $or: [{ title: regex }, { company: regex }, { skills: regex }],
+      });
+    }
+
+    // Location search ("remote" also matches the workplace field)
+    if (typeof location === "string" && location.trim()) {
+      const regex = new RegExp(escapeRegex(location.trim()), "i");
+      conditions.push({
+        $or: [{ location: regex }, { workplace: regex }],
+      });
+    }
+
+    // $and keeps both $or groups instead of one overwriting the other
+    if (conditions.length) {
+      filter.$and = conditions;
+    }
+
+    //Create sort feature using date created, closing date and title
+    const sortKey =
+      typeof sort === "string" && SORT_OPTIONS[sort] ? sort : "newest";
+    const sortBy = { ...SORT_OPTIONS[sortKey], _id: -1 as const };
 
     const jobs = await Job.find(filter)
       .populate("category")
       .populate<{ postedBy: IUser }>("postedBy", "firstName lastName")
-      .sort({ createdAt: -1, title: 1 })
+      .sort(sortBy)
       .skip(skip)
       .limit(limit)
       .lean();
@@ -184,7 +225,7 @@ export const getAllJobs = async (req: Request, res: Response) => {
           job: {
             id: job._id,
             title: job.title,
-            desciption: job.description,
+            description: job.description,
             company: job.company,
             location: job.location,
             skills: job.skills,
@@ -442,17 +483,6 @@ export const deleteJob = async (req: RequestAuth, res: Response) => {
   } catch (error) {
     console.error(error);
 
-    return res.status(500).json({
-      message: "Internal server error",
-    });
-  }
-};
-
-//Search jobs
-export const serchJob = async (req: RequestAuth, res: Response) => {
-  try {
-  } catch (error) {
-    console.error(error);
     return res.status(500).json({
       message: "Internal server error",
     });
