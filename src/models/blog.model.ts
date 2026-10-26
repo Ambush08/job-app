@@ -8,7 +8,9 @@ export interface IBlog extends Document {
     category: 'tech'|'business'|'fashion'|'politics'|'engineering'|'sports',
     postedBy: Types.ObjectId,
     coverImageUrl?: string,
-    coverImagePublicId?: string
+    coverImagePublicId?: string,
+    createdAt: Date,
+    updatedAt: Date
 }
 
 const blogSchema = new Schema<IBlog>({
