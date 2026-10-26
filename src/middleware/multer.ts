@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "path";
 import crypto from "crypto";
 
-const uploadDir = path.join(process.cwd(), "uploads");
+const uploadDir = '/tmp/uploads';
 
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
