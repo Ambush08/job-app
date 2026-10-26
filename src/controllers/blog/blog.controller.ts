@@ -129,6 +129,7 @@ export const getAllBlogs = async (req: Request, res: Response) => {
           body: blog.body,
           coverImageUrl: blog.coverImageUrl,
           postedBy: `${blog.postedBy.firstName} ${blog.postedBy.lastName}`,
+          createdAt: blog.createdAt
         };
       }),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
