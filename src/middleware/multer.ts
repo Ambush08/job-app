@@ -11,7 +11,7 @@ if (!fs.existsSync(uploadDir)) {
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, "tmp/uploads/");
+    cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
     crypto.randomBytes(16, function (err, raw) {
