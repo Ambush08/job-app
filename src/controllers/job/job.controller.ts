@@ -239,6 +239,7 @@ export const getAllJobs = async (req: Request, res: Response) => {
             jobType: job.jobType,
             workplace: job.workplace,
             postedBy: `${job.postedBy.firstName} ${job.postedBy.lastName}`,
+            createdAt:job.createdAt
           },
         };
       }),
