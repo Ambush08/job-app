@@ -391,6 +391,8 @@ export const refreshToken = async (req: Request, res: Response) => {
       httpOnly: true,
       sameSite: "lax",
       secure: isProd,
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     //  Create new access token
