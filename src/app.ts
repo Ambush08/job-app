@@ -8,6 +8,7 @@ import userRouter from "./routes/user.routes.js";
 import jobRouter from "./routes/job.routes.js";
 import categoryRouter from "./routes/category.routes.js";
 import blogRouter from "./routes/blog.routes.js";
+import { log } from "console";
 
 dotenv.config();
 
@@ -54,3 +55,4 @@ const port = Number(process.env.PORT) || 4000;
 app.listen(port, () => {
   console.log(`Server running on http://${process.env.APP_URI}:${port}`);
 });
+
