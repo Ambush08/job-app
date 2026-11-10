@@ -292,6 +292,7 @@ export const getJob = async (req: RequestAuth, res: Response) => {
         jobType: job.jobType,
         workplace: job.workplace,
         postedBy: `${job.postedBy.firstName} ${job.postedBy.lastName}`,
+        createdAt: job.createdAt,
       },
     });
   } catch (error) {
