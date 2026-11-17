@@ -26,7 +26,6 @@ const SORT_OPTIONS: Record<string, Record<string, 1 | -1>> = {
   closing: { closingDate: 1 },
 };
 
-
 const parseAmount = (value?: string) => {
   if (!value) return undefined;
   const n = Number(value.replace(/\+$/, "").replace(/k$/i, "000"));
@@ -184,8 +183,8 @@ export const getAllJobs = async (req: Request, res: Response) => {
       const min = parseAmount(rawMin);
       const max = parseAmount(rawMax);
 
-      if (min !== undefined) filter.salaryMax = { $gte: min };
-      if (max !== undefined) filter.salaryMin = { $lte: max };
+      if (min !== undefined) filter.salaryMin = { $gte: min };
+      if (max !== undefined) filter.salaryMax = { $lte: max };
     }
 
     // Search by title, company or skill
@@ -244,7 +243,7 @@ export const getAllJobs = async (req: Request, res: Response) => {
             jobType: job.jobType,
             workplace: job.workplace,
             postedBy: `${job.postedBy.firstName} ${job.postedBy.lastName}`,
-            createdAt:job.createdAt
+            createdAt: job.createdAt,
           },
         };
       }),
