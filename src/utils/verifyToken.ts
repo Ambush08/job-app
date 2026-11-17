@@ -12,7 +12,7 @@ export const createRefreshToken = (userId: string, role: 'User' | 'Admin', token
     return jwt.sign(
         {userId, role, tokenVersion},
         refreshSecret,
-        {expiresIn: '7d'}
+        {expiresIn: '1d'}
     );
 }
 
