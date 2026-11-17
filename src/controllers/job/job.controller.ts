@@ -183,8 +183,8 @@ export const getAllJobs = async (req: Request, res: Response) => {
       const min = parseAmount(rawMin);
       const max = parseAmount(rawMax);
 
-      if (min !== undefined) filter.salaryMin = { $gte: min };
-      if (max !== undefined) filter.salaryMax = { $lte: max };
+      if (min !== undefined) filter.salaryMax = { $gte: min };
+      if (max !== undefined) filter.salaryMin = { $lte: max };
     }
 
     // Search by title, company or skill
