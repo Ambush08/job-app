@@ -26,6 +26,13 @@ const SORT_OPTIONS: Record<string, Record<string, 1 | -1>> = {
   closing: { closingDate: 1 },
 };
 
+
+const parseAmount = (value?: string) => {
+  if (!value) return undefined;
+  const n = Number(value.replace(/\+$/, "").replace(/k$/i, "000"));
+  return Number.isFinite(n) ? n : undefined;
+};
+
 //Create job
 export const createJob = async (req: RequestAuth, res: Response) => {
   const result = createJobSchema.safeParse(req.body);
@@ -172,15 +179,13 @@ export const getAllJobs = async (req: Request, res: Response) => {
       filter.workplace = workplace;
     }
 
-    if (salary) {
-      const [min, max] = String(salary)
-        .split("-")
-        .map((value) => Number(value.replace("k", "000")));
+    if (typeof salary === "string" && salary) {
+      const [rawMin, rawMax] = salary.split("-");
+      const min = parseAmount(rawMin);
+      const max = parseAmount(rawMax);
 
-      if (Number.isFinite(min) && Number.isFinite(max)) {
-        filter.salaryMin = { $lte: max };
-        filter.salaryMax = { $gte: min };
-      }
+      if (min !== undefined) filter.salaryMax = { $gte: min };
+      if (max !== undefined) filter.salaryMin = { $lte: max };
     }
 
     // Search by title, company or skill
